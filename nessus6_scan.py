@@ -6,6 +6,10 @@ import queue
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element, SubElement, tostring
 import ConfigParser
+import datetime
+from time import gmtime, strftime
+import base64
+import zlib
 
 config = ConfigParser.ConfigParser()
 config.read("general.config")
@@ -289,47 +293,128 @@ def get_vulnerability(file_name):
 
     preferences = root.findall("Policy/Preferences/ServerPreferences/preference")
     for preference in preferences:
-        print preference
+        
         result = {}
         for node in preference:
             result[node.tag] = node.text
         if result["name"] == "plugin_set":
             plugin_set = result["value"]
-    print plugin_set
-    print len(plugin_set.split(";"))
+    
+    number_tests = len(plugin_set.split(";"))
 
+    severity_match = {0:"S4", 1:"S3", 2:"S2", 3:"S1", 4:"S0"}
     testsuites = Element("testsuites")
+    number_issues = 0
     for elem in root.findall("Report/ReportHost"):
         testsuite = SubElement(testsuites, "testsuite")
         for issue in elem.findall("ReportItem"):
+            number_issues = number_issues + 1
             testcase = SubElement(testsuite, "testcase")
             attribs = issue.attrib
             failure = SubElement(testcase, "failure")
+            description = ""
+            synopsis = ""
+            plugin_output = ""
             for atom in issue:
                 if atom.tag == "description":
-                    failure.text = atom.text 
+                    description = atom.text
+                elif atom.tag == "synopsis":
+                    synopsis = atom.text
+                elif atom.tag == "plugin_output":
+                    plugin_output = atom.text
 
+            failure.text = u"Description: {}\n\nSynopsis: {}\n\nPlugin Output: {}\n".format(description, synopsis, plugin_output) 
             testcase_attribs = {}
+            testcase_attribs["severity"] = severity_match[int(attribs["severity"])]
             testcase_attribs["name"] = attribs["pluginName"]
-            testcase_attribs["classname"] = attribs["pluginID"]
+            testcase_attribs["pluginID"] = attribs["pluginID"]
+            testcase_attribs["pluginName"] = attribs["pluginName"]
+            testcase_attribs["calssname"] = attribs["pluginID"]
             testcase.attrib = testcase_attribs
-            print attribs
+            #print attribs
             issues.append(issue)
-    print issues
-    print tostring(testsuites)
+    #print issues
+    testsuites_attribs = {}
+    testsuites_attribs["failures"] = str(number_issues)
+    testsuites_attribs["errors"] = "0"
+    testsuites_attribs["name"] = "name"
+    testsuites_attribs["skips"] = "0"
+    testsuites_attribs["tests"] = str(number_tests)
+    testsuites.attrib = testsuites_attribs
+    return tostring(testsuites)
+
+
+def update_queue_scan_started(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
+    config = ConfigParser.ConfigParser()
+    config.read("general.config")
+    client_id = config.get("nessus", "client_id")
+    the_scan = queue.ScanQueue()
+    thing = {"status": "scan started", "start_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()) }
+    (status, href, start_time) = get_queue_scan_status(scan_id)
+    if status == "not found":
+        the_scan.post_queue_message(client_id=client_id, queue_name="ScanResponse", scan_id=scan_id, body=thing)
+
+def update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839", scan_result="{}"):
+    
+    config = ConfigParser.ConfigParser()
+    config.read("general.config")
+    client_id = config.get("nessus", "client_id")
+    the_scan = queue.ScanQueue()
+    (status, href, start_time) = get_queue_scan_status(scan_id)
+    thing = {"status": "scan finished", "finish_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()),
+             "start_time": start_time, "scan_result" : scan_result}
+    if status == "scan started":
+        message_id = href.split("/")[-1]
+        print message_id
+        the_scan.delete_queue_message(client_id=client_id, queue_name="ScanResponse", message_id = message_id)
+        the_scan.post_queue_message(client_id=client_id, queue_name="ScanResponse", scan_id=scan_id, body=thing)
+
+
+def get_queue_scan_status(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
+    config = ConfigParser.ConfigParser()
+    config.read("general.config")
+    client_id = config.get("nessus", "client_id")
+    the_scan = queue.ScanQueue()
+    the_messages = the_scan.get_queue_messages(queue_name="ScanResponse", client_id=client_id)
+    the_messages_list = the_messages["messages"]
+    print the_messages_list
+    status = "not found"
+    href = "none"
+    start_time = "none"
+    for message in the_messages_list:
+        if  message["body"]["scan_id"] == scan_id:
+            status =  message["body"]["status"]
+            start_time = message["body"]["start_time"]
+            href = message["href"]
+    return (status, href, start_time)
 
 
 
 if __name__ == '__main__':
-    the_result = claim_a_message()
+    '''the_result = claim_a_message()
     if (len(the_result) > 0):
         our_scan_id = the_result[0]
         message = the_result[1]
         claim_id = the_result[2]
 
-    print the_result    
-    #get_vulnerability("nessus_1024_510511181.nessus")
+    print the_result '''
 
+    our_scan_id = "cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"   
+    scan_result = get_vulnerability("nessus_1024_510511181.nessus")
+    scan_status = "started"
+
+    print scan_result
+
+    update_queue_scan_started(scan_id="f2467ec8-9da6-4ad6-be26-ca515c2f0cde")
+    get_queue_scan_status()
+
+    #print len(base64.b64encode(scan_result.encode("zlib")))
+
+    #update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969830", scan_result=base64.b64encode(scan_result.encode("zlib")))
+
+
+
+    
     sys.exit(-1)
 
     ips=["127.0.0.1"]

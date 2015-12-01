@@ -9,7 +9,7 @@ import identity
 class Test(object):
 
     def __init__(self):
-        self.url = "http://localhost:8088"
+        self.url = "http://localhost:8000"
         config = ConfigParser.ConfigParser()
         config.read("general.config")
         self.token = config.get("test", "token")

@@ -24,7 +24,26 @@ class ScanQueue(object):
                    "X-Project-Id" : self.project_id,
                    "Client-ID" : client_id}
         resp = requests.get(url, headers=headers, verify=False)
-        return resp.json()
+        if resp.status_code == 204:
+          return {}
+        else:
+          return resp.json()  
+        
+   
+    def delete_queue_message(self, queue_name="ScanRequest", client_id=str(uuid.uuid4()), message_id=""):
+        url = "{}/queues/{}/messages/{}".format(self.endpoint, queue_name, message_id)
+        headers = {"Content-type" : "application/json",
+                   "Accept" : "application/json",
+                   "X-Auth-Token" : self.token, 
+                   "X-Project-Id" : self.project_id,
+                   "Client-ID" : client_id}
+        resp = requests.delete(url, headers=headers, verify=False)
+        if resp.status_code == 204:
+          return {}
+        else:
+          return resp.json()  
+   
+
 
     def claim_a_message(self, queue_name="ScanRequest", client_id=str(uuid.uuid4())):
         url = "{}/queues/{}/claims?limit=1".format(self.endpoint, queue_name)
@@ -45,7 +64,7 @@ class ScanQueue(object):
             return ()
 
 
-    def post_queue_message(self, queue_name="ScanRequest", client_id=str(uuid.uuid4()), body={"1":"2"}):
+    def post_queue_message(self, scan_id="none", queue_name="ScanRequest", client_id=str(uuid.uuid4()), body={"1":"2"}):
         url = "{}/queues/{}/messages".format(self.endpoint, queue_name)
         headers = {"Content-type" : "application/json",
                    "Accept" : "application/json",
@@ -53,12 +72,15 @@ class ScanQueue(object):
                    "X-Project-Id" : self.project_id,
                    "Client-ID" : client_id}
         payload = []
-        print "*****"
-        print url 
-        print headers
-        body["scan_id"] = str(uuid.uuid4())
+        if scan_id == "none":
+            body["scan_id"] = str(uuid.uuid4())
+        else:
+            body["scan_id"] = scan_id
+
         payload.append({"ttl":30000, "body":body})
         resp = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
+        print resp.status_code
+        print resp.text
         if resp.status_code == 201:
             return body["scan_id"]
         else:

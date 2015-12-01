@@ -6,6 +6,8 @@ import falcon
 import requests
 import queue
 import ConfigParser
+import base64
+import zlib
 
 class ScanEngine(object):
 
@@ -14,12 +16,28 @@ class ScanEngine(object):
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
         the_scan = queue.ScanQueue()
-        the_messages = the_scan.get_request_message(client_id)
+        the_messages = the_scan.get_queue_messages(client_id=client_id)
         return the_messages
 
     def get_scan_status(self, scan_id):
-        return [{'id': scan_id, 'color': 'green'}]
 
+        config = ConfigParser.ConfigParser()
+        config.read("general.config")
+        client_id = config.get("apinode", "client_id")
+        the_scan = queue.ScanQueue()
+        the_messages = the_scan.get_queue_messages(queue_name="ScanResponse", client_id=client_id)
+        if len(the_messages) < 1:
+            return "{{'id':{}, 'status':'not started'}}".format(scan_id)
+        else:
+            for message in the_messages["messages"]:
+                if  message["body"]["scan_id"] == scan_id:
+                    the_result =  message["body"]
+                    if the_result["status"] == "scan finished":
+                        temp_scan_result = the_result["scan_result"]
+                        the_result["scan_result"] = base64.b64decode(temp_scan_result).decode("zlib")
+                        return the_result
+                    else:
+                        return the_result
 
     def add_scan(self, thing):
         config = ConfigParser.ConfigParser()
@@ -255,15 +273,6 @@ scan = NessusScan(db)
 app.add_route('/scans/{scan_id}', scan)
 app.add_route('/scans', scans)
 
-# If a responder ever raised an instance of StorageError, pass control to
-# the given handler.
-app.add_error_handler(StorageError, StorageError.handle)
-
-# Proxy some things to another service; this example shows how you might
-# send parts of an API off to a legacy system that hasn't been upgraded
-# yet, or perhaps is a single cluster that all data centers have to share.
-sink = SinkAdapter()
-app.add_sink(sink, r'/search/(?P<engine>ddg|y)\Z')
 
 # Useful for debugging problems in your API; works with pdb.set_trace()
 if __name__ == '__main__':
