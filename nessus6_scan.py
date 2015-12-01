@@ -305,6 +305,8 @@ def get_vulnerability(file_name):
     testsuites = Element("testsuites")
     number_issues = 0
     for elem in root.findall("Report/ReportHost"):
+        # need to get host name or IP address
+        host = elem.attrib["name"]
         testsuite = SubElement(testsuites, "testsuite")
         for issue in elem.findall("ReportItem"):
             number_issues = number_issues + 1
@@ -322,13 +324,14 @@ def get_vulnerability(file_name):
                 elif atom.tag == "plugin_output":
                     plugin_output = atom.text
 
-            failure.text = u"Description: {}\n\nSynopsis: {}\n\nPlugin Output: {}\n".format(description, synopsis, plugin_output) 
+            failure.text = u"Host: {}\n\nDescription: {}\n\nSynopsis: {}\n\nPlugin Output: {}\n".format(host, description, synopsis, plugin_output) 
             testcase_attribs = {}
             testcase_attribs["severity"] = severity_match[int(attribs["severity"])]
             testcase_attribs["name"] = attribs["pluginName"]
             testcase_attribs["pluginID"] = attribs["pluginID"]
             testcase_attribs["pluginName"] = attribs["pluginName"]
-            testcase_attribs["calssname"] = attribs["pluginID"]
+            testcase_attribs["classname"] = attribs["pluginID"]
+            testcase_attribs["host"] = host
             testcase.attrib = testcase_attribs
             #print attribs
             issues.append(issue)
@@ -404,8 +407,8 @@ if __name__ == '__main__':
 
     print scan_result
 
-    update_queue_scan_started(scan_id="f2467ec8-9da6-4ad6-be26-ca515c2f0cde")
-    get_queue_scan_status()
+    #update_queue_scan_started(scan_id="f2467ec8-9da6-4ad6-be26-ca515c2f0cde")
+    #get_queue_scan_status()
 
     #print len(base64.b64encode(scan_result.encode("zlib")))
 
@@ -414,7 +417,7 @@ if __name__ == '__main__':
 
 
     
-    print the_result    
+    #print the_result    
     #get_vulnerability("nessus_1024_510511181.nessus")
 
     sys.exit(-1)
