@@ -38,7 +38,6 @@ class ScanEngine(object):
                         return the_result
                     else:
                         return the_result
-
     def add_scan(self, thing):
         config = ConfigParser.ConfigParser()
         config.read("general.config")

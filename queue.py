@@ -42,8 +42,6 @@ class ScanQueue(object):
           return {}
         else:
           return resp.json()  
-   
-
 
     def claim_a_message(self, queue_name="ScanRequest", client_id=str(uuid.uuid4())):
         url = "{}/queues/{}/claims?limit=1".format(self.endpoint, queue_name)

@@ -293,7 +293,6 @@ def get_vulnerability(file_name):
 
     preferences = root.findall("Policy/Preferences/ServerPreferences/preference")
     for preference in preferences:
-        
         result = {}
         for node in preference:
             result[node.tag] = node.text
@@ -415,6 +414,9 @@ if __name__ == '__main__':
 
 
     
+    print the_result    
+    #get_vulnerability("nessus_1024_510511181.nessus")
+
     sys.exit(-1)
 
     ips=["127.0.0.1"]
