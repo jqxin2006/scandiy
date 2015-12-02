@@ -465,7 +465,7 @@ if __name__ == '__main__':
             thread_scan = threading.Thread(target=nessus_scan_ips, kwargs=dict(ips=ips, scan_id=our_scan_id))
             thread_scan.start()
         else:
-            time.sleep(5)
+            time.sleep(120)
 
 
 
