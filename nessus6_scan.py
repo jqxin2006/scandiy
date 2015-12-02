@@ -10,6 +10,8 @@ import datetime
 from time import gmtime, strftime
 import base64
 import zlib
+import threading
+
 
 
 config = ConfigParser.ConfigParser()
@@ -278,14 +280,12 @@ def claim_a_message():
     the_scan = queue.ScanQueue()
     json_msg = the_scan.claim_a_message(client_id = client_id)
     if len(json_msg) > 0:
-        print json_msg
         scan_id = json_msg[0]["body"]["scan_id"]
-        href = json_msg[0]["href"]
-        print scan_id
-        print href
-            
-
-    return json_msg
+        ips = json_msg[0]["body"]["targets"]
+        origin_id = json_msg[0]["body"]["id"]
+        return (scan_id, origin_id, ips)
+    else:
+        return ()
 
 def get_vulnerability(filename="", run_time=10):
     tree = ET.parse(filename)
@@ -356,6 +356,7 @@ def update_queue_scan_started(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     the_scan = queue.ScanQueue()
     thing = {"status": "scan started", "start_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()) }
     (status, href, start_time) = get_queue_scan_status(scan_id)
+    print "updated scan id is:" + scan_id
     if status == "not found":
         the_scan.post_queue_message(client_id=client_id, queue_name="ScanResponse", scan_id=scan_id, body=thing)
 
@@ -368,6 +369,8 @@ def update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839", s
     (status, href, start_time) = get_queue_scan_status(scan_id)
     thing = {"status": "scan finished", "finish_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()),
              "start_time": start_time, "scan_result" : scan_result}
+    print status
+    print scan_id
     if status == "scan started":
         message_id = href.split("/")[-1]
         print message_id
@@ -381,16 +384,17 @@ def get_queue_scan_status(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
     the_messages = the_scan.get_queue_messages(queue_name="ScanResponse", client_id=client_id)
-    the_messages_list = the_messages["messages"]
-    print the_messages_list
     status = "not found"
     href = "none"
     start_time = "none"
-    for message in the_messages_list:
-        if  message["body"]["scan_id"] == scan_id:
-            status =  message["body"]["status"]
-            start_time = message["body"]["start_time"]
-            href = message["href"]
+
+    if len(the_messages)>0:
+        the_messages_list = the_messages["messages"]
+        for message in the_messages_list:
+            if  message["body"]["scan_id"] == scan_id:
+                status =  message["body"]["status"]
+                start_time = message["body"]["start_time"]
+                href = message["href"]
     return (status, href, start_time)
 
 
@@ -404,6 +408,10 @@ def nessus_scan_ips(ips="127.0.0.1", scan_name="test scan", scan_id="cb6399bb-3e
     print('Login')
     global token 
     token = login(username, password)
+
+    #update queue with statu of "scan started"
+    print "scan_id is: " + scan_id
+    update_queue_scan_started(scan_id)
 
     print('Adding new scan.')
     policies = get_policies()
@@ -438,12 +446,29 @@ def nessus_scan_ips(ips="127.0.0.1", scan_name="test scan", scan_id="cb6399bb-3e
     run_time = end_time - start_time
     # get scan result from the downloaded file
     scan_result = get_vulnerability(filename = filename, run_time=run_time)
+    #scan_result = get_vulnerability(filename="nessus_1058_1383458551.nessus", run_time=100)
+    print "update the queue"
 
-    print scan_result
-
-
+    # update the queue with scan result and the status of "san finished"
+    update_queue_scan_finished(scan_id, scan_result=base64.b64encode(scan_result.encode("zlib")))
+    
 
 if __name__ == '__main__':
+    
+    while 1==1:
+        the_message = claim_a_message()
+        # get a message with IP address
+        if (len(the_message)) > 0:
+            our_scan_id = the_message[0]
+            origin_id = the_message[1]
+            ips = the_message[2]
+            thread_scan = threading.Thread(target=nessus_scan_ips, kwargs=dict(ips=ips, scan_id=our_scan_id))
+            thread_scan.start()
+        else:
+            time.sleep(5)
+
+
+
     '''the_result = claim_a_message()
     if (len(the_result) > 0):
         our_scan_id = the_result[0]
@@ -452,11 +477,11 @@ if __name__ == '__main__':
 
     print the_result '''
 
-    our_scan_id = "cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"   
-    scan_result = get_vulnerability("nessus_1024_510511181.nessus")
-    scan_status = "started"
+    #our_scan_id = "cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"   
+    #scan_result = get_vulnerability("nessus_1024_510511181.nessus")
+    #scan_status = "started"
 
-    print scan_result
+    #print scan_result
 
     #update_queue_scan_started(scan_id="f2467ec8-9da6-4ad6-be26-ca515c2f0cde")
     #get_queue_scan_status()
@@ -470,5 +495,5 @@ if __name__ == '__main__':
     
     #print the_result    
     #get_vulnerability("nessus_1024_510511181.nessus")
-    nessus_scan_ips()
+    #nessus_scan_ips()
 

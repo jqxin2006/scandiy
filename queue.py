@@ -17,7 +17,7 @@ class ScanQueue(object):
         self.token = one_identity.get_token()
 
     def get_queue_messages(self, queue_name="ScanRequest", client_id=str(uuid.uuid4())):
-        url = "{}/queues/{}/messages?echo=true".format(self.endpoint, queue_name)
+        url = "{}/queues/{}/messages?echo=true&limit=100".format(self.endpoint, queue_name)
         headers = {"Content-type" : "application/json",
                    "Accept" : "application/json",
                    "X-Auth-Token" : self.token, 

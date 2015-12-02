@@ -26,10 +26,14 @@ class ScanEngine(object):
         client_id = config.get("apinode", "client_id")
         the_scan = queue.ScanQueue()
         the_messages = the_scan.get_queue_messages(queue_name="ScanResponse", client_id=client_id)
+        the_result = "{}"
+        print the_messages
+        print "Here is the scan_id:" + scan_id
         if len(the_messages) < 1:
             return "{{'id':{}, 'status':'not started'}}".format(scan_id)
         else:
             for message in the_messages["messages"]:
+                print message["body"]["scan_id"]
                 if  message["body"]["scan_id"] == scan_id:
                     the_result =  message["body"]
                     if the_result["status"] == "scan finished":
@@ -38,6 +42,7 @@ class ScanEngine(object):
                         return the_result
                     else:
                         return the_result
+            return the_result
     def add_scan(self, thing):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
