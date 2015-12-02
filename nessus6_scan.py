@@ -11,6 +11,7 @@ from time import gmtime, strftime
 import base64
 import zlib
 
+
 config = ConfigParser.ConfigParser()
 config.read("general.config")
 
@@ -286,8 +287,8 @@ def claim_a_message():
 
     return json_msg
 
-def get_vulnerability(file_name):
-    tree = ET.parse(file_name)
+def get_vulnerability(filename="", run_time=10):
+    tree = ET.parse(filename)
     root = tree.getroot()
     issues = []
 
@@ -331,7 +332,7 @@ def get_vulnerability(file_name):
             testcase_attribs["pluginID"] = attribs["pluginID"]
             testcase_attribs["pluginName"] = attribs["pluginName"]
             testcase_attribs["classname"] = attribs["pluginID"]
-            testcase_attribs["host"] = host
+            
             testcase.attrib = testcase_attribs
             #print attribs
             issues.append(issue)
@@ -342,6 +343,8 @@ def get_vulnerability(file_name):
     testsuites_attribs["name"] = "name"
     testsuites_attribs["skips"] = "0"
     testsuites_attribs["tests"] = str(number_tests)
+    testsuites_attribs["host"] = host
+    testsuites_attribs["time"] = str(run_time)
     testsuites.attrib = testsuites_attribs
     return tostring(testsuites)
 
@@ -391,6 +394,54 @@ def get_queue_scan_status(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     return (status, href, start_time)
 
 
+def nessus_scan_ips(ips="127.0.0.1", scan_name="test scan", scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
+    ''' Call Nessus scanner to scan given IPs and 
+        given scan name. It returns the scan result in 
+        JSON format
+    '''
+
+    start_time = time.time()
+    print('Login')
+    global token 
+    token = login(username, password)
+
+    print('Adding new scan.')
+    policies = get_policies()
+
+    print policies
+    policy_id = policies['Internal PCI Network Scan']
+    scan_data = add(scan_name + scan_id, 'Create a new scan with API', ips, policy_id)
+    nessus_scan_id = scan_data['id']
+
+    #print('Updating scan with new targets.')
+    #update(scan_id, scan_data['name'], scan_data['description'], '10.230.228.0/24')
+
+    print('Launching new scan.')
+    nessus_scan_uuid = launch(nessus_scan_id)
+    history_ids = get_history_ids(nessus_scan_id)
+    history_id = history_ids[nessus_scan_uuid]
+    while status(nessus_scan_id, history_id) != 'completed':
+        time.sleep(5)
+
+    print('Exporting the completed scan.')
+    file_id = export(nessus_scan_id, history_id)
+    download(nessus_scan_id, file_id)
+
+    filename = 'nessus_{0}_{1}.nessus'.format(nessus_scan_id, file_id)
+    print filename
+    #history_delete(scan_id, history_id)
+    #delete(scan_id)
+    print('Logout')
+    logout()
+
+    end_time = time.time()
+    run_time = end_time - start_time
+    # get scan result from the downloaded file
+    scan_result = get_vulnerability(filename = filename, run_time=run_time)
+
+    print scan_result
+
+
 
 if __name__ == '__main__':
     '''the_result = claim_a_message()
@@ -419,44 +470,5 @@ if __name__ == '__main__':
     
     #print the_result    
     #get_vulnerability("nessus_1024_510511181.nessus")
+    nessus_scan_ips()
 
-    sys.exit(-1)
-
-    ips=["127.0.0.1"]
-    print ips
-
-    
-    print('Login')
-    token = login(username, password)
-
-    print('Adding new scan.')
-    policies = get_policies()
-    print policies
-
-
-    policy_id = policies['Internal PCI Network Scan']
-    scan_data = add('Test Scan', 'Create a new scan with API', '127.0.0.1', policy_id)
-    scan_id = scan_data['id']
-
-    #print('Updating scan with new targets.')
-    #update(scan_id, scan_data['name'], scan_data['description'], '10.230.228.0/24')
-
-    print('Launching new scan.')
-    scan_uuid = launch(scan_id)
-    history_ids = get_history_ids(scan_id)
-    history_id = history_ids[scan_uuid]
-    while status(scan_id, history_id) != 'completed':
-        time.sleep(5)
-
-    print('Exporting the completed scan.')
-    file_id = export(scan_id, history_id)
-    download(scan_id, file_id)
-
-    filename = 'nessus_{0}_{1}.nessus'.format(sid, fid)
-    print filename
-    print('Deleting the scan.')
-    #history_delete(scan_id, history_id)
-    #delete(scan_id)
-
-    print('Logout')
-    logout()
