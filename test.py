@@ -5,6 +5,7 @@ import requests
 import re
 import ConfigParser
 import identity
+import queue
 
 class Test(object):
 
@@ -13,6 +14,22 @@ class Test(object):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
         self.token = config.get("test", "token")
+
+    def get_queue_messages(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
+        config = ConfigParser.ConfigParser()
+        config.read("general.config")
+        client_id = config.get("nessus", "client_id")
+        the_scan = queue.ScanQueue()
+        the_messages = the_scan.get_queue_messages(queue_name="ScanResponse", client_id=client_id)
+        number_messages = 0
+
+        if len(the_messages)>0:
+            the_messages_list = the_messages["messages"]
+            number_messages = len(the_messages_list)
+            for message in the_messages_list:
+                print message
+
+        print "There are {} messages".format(number_messages)
 
     def post_scan(self):
         url = "{}/scans".format(self.url)
@@ -80,4 +97,4 @@ class Test(object):
 
 if __name__ == '__main__':
     one_test = Test()
-    one_test.post_scan()
+    one_test.get_queue_messages()

@@ -279,6 +279,7 @@ def claim_a_message():
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
     json_msg = the_scan.claim_a_message(client_id = client_id)
+    print " I am trying to claim a message!"
     print json_msg
     if len(json_msg) > 0:
         scan_id = json_msg[0]["body"]["scan_id"]
@@ -457,7 +458,7 @@ def nessus_scan_ips(ips="127.0.0.1", scan_name="test scan", scan_id="cb6399bb-3e
     run_time = end_time - start_time
     # get scan result from the downloaded file
     scan_result = get_vulnerability(filename = filename, run_time=run_time)
-    #scan_result = get_vulnerability(filename="nessus_1058_1383458551.nessus", run_time=100)
+    #scan_result = get_vulnerability(filename="nessus_1253_139115758.nessus", run_time=100)
     print "update the queue"
 
     # update the queue with scan result and the status of "san finished"
