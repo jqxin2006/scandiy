@@ -279,10 +279,19 @@ def claim_a_message():
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
     json_msg = the_scan.claim_a_message(client_id = client_id)
+    print json_msg
     if len(json_msg) > 0:
         scan_id = json_msg[0]["body"]["scan_id"]
         ips = json_msg[0]["body"]["targets"]
         origin_id = json_msg[0]["body"]["id"]
+        href = json_msg[0]["href"]
+        msg_id_claim_id = href.split("/")[-1]
+        claim_id = msg_id_claim_id.split("?")[1]
+        msg_id = msg_id_claim_id.split("?")[0]
+        print msg_id_claim_id
+        # delete the message
+        the_scan.delete_queue_message(client_id=client_id, message_id = msg_id_claim_id)
+        print "delete the message with id of %s" % msg_id_claim_id
         return (scan_id, origin_id, ips)
     else:
         return ()
@@ -429,14 +438,16 @@ def nessus_scan_ips(ips="127.0.0.1", scan_name="test scan", scan_id="cb6399bb-3e
     history_ids = get_history_ids(nessus_scan_id)
     history_id = history_ids[nessus_scan_uuid]
     while status(nessus_scan_id, history_id) != 'completed':
-        time.sleep(5)
+        time.sleep(25)
 
     print('Exporting the completed scan.')
+
     file_id = export(nessus_scan_id, history_id)
     download(nessus_scan_id, file_id)
 
     filename = 'nessus_{0}_{1}.nessus'.format(nessus_scan_id, file_id)
     print filename
+    print "%s with scan id %s" % (filename, scan_id)
     #history_delete(scan_id, history_id)
     #delete(scan_id)
     print('Logout')
@@ -465,7 +476,7 @@ if __name__ == '__main__':
             thread_scan = threading.Thread(target=nessus_scan_ips, kwargs=dict(ips=ips, scan_id=our_scan_id))
             thread_scan.start()
         else:
-            time.sleep(120)
+            time.sleep(10)
 
 
 

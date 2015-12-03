@@ -61,6 +61,18 @@ class ScanQueue(object):
         else:
             return ()
 
+    def release_a_claim(self, queue_name="ScanRequest", client_id=str(uuid.uuid4()), claim_id=""):
+        url = "{}/queues/{}/claims/{}".format(self.endpoint, queue_name, claim_id)
+        headers = {"Content-type" : "application/json",
+                   "Accept" : "application/json",
+                   "X-Auth-Token" : self.token, 
+                   "X-Project-Id" : self.project_id,
+                   "Client-ID" : client_id}
+        resp = requests.delete(url, headers=headers, verify=False)
+        if resp.status_code == 204:
+            return True
+        else:
+            return False
 
     def post_queue_message(self, scan_id="none", queue_name="ScanRequest", client_id=str(uuid.uuid4()), body={"1":"2"}):
         url = "{}/queues/{}/messages".format(self.endpoint, queue_name)
