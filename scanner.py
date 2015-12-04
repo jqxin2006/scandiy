@@ -13,7 +13,7 @@ from retrying import retry
 
 class ScanEngine(object):
 
-    @retry(stop_max_attempt_number=7)
+    @retry(stop_max_attempt_number=7, wait_fixed=5000)
     def get_scans(self):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
@@ -22,7 +22,7 @@ class ScanEngine(object):
         the_messages = the_scan.get_queue_messages(client_id=client_id)
         return the_messages
 
-    @retry(stop_max_attempt_number=7)
+    @retry(stop_max_attempt_number=7, wait_fixed=5000)
     def get_scan_status(self, scan_id):
 
         config = ConfigParser.ConfigParser()
@@ -49,7 +49,7 @@ class ScanEngine(object):
                     else:
                         return the_result
             return the_result
-    @retry(stop_max_attempt_number=7)
+    @retry(stop_max_attempt_number=7, wait_fixed=5000)
     def add_scan(self, thing):
         config = ConfigParser.ConfigParser()
         config.read("general.config")

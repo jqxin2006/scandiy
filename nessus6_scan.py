@@ -29,7 +29,7 @@ password = config.get("nessus", "password")
 def build_url(resource):
     return '{0}{1}'.format(url, resource)
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def connect(method, resource, data=None, params=None):
     """
     Send a request
@@ -69,7 +69,7 @@ def connect(method, resource, data=None, params=None):
     except ValueError:
         return r.content
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def login(usr, pwd):
     """
     Login to nessus.
@@ -80,7 +80,7 @@ def login(usr, pwd):
 
     return data['token']
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def logout():
     """
     Logout of nessus.
@@ -88,7 +88,7 @@ def logout():
 
     connect('DELETE', '/session')
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_policies():
     """
     Get scan policies
@@ -101,7 +101,7 @@ def get_policies():
 
     return dict((p['title'], p['uuid']) for p in data['templates'])
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_history_ids(sid):
     """
     Get history ids
@@ -113,7 +113,7 @@ def get_history_ids(sid):
 
     return dict((h['uuid'], h['history_id']) for h in data['history'])
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_scan_history(sid, hid):
     """
     Scan history details
@@ -125,7 +125,7 @@ def get_scan_history(sid, hid):
 
     return data['info']
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def add(name, desc, targets, pid):
     """
     Add a new scan
@@ -146,7 +146,7 @@ def add(name, desc, targets, pid):
 
     return data['scan']
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def update(scan_id, name, desc, targets, pid=None):
     """
     Update a scan
@@ -170,7 +170,7 @@ def update(scan_id, name, desc, targets, pid=None):
 
     return data
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def launch(sid):
     """
     Launch a scan
@@ -182,7 +182,7 @@ def launch(sid):
 
     return data['scan_uuid']
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def status(sid, hid):
     """
     Check the status of a scan run
@@ -194,7 +194,7 @@ def status(sid, hid):
     d = get_scan_history(sid, hid)
     return d['status']
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def export_status(sid, fid):
     """
     Check export status
@@ -206,7 +206,7 @@ def export_status(sid, fid):
 
     return data['status'] == 'ready'
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def export(sid, hid):
     """
     Make an export request
@@ -230,7 +230,7 @@ def export(sid, hid):
 
     return fid
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def download(sid, fid):
     """
     Download the scan results
@@ -246,7 +246,7 @@ def download(sid, fid):
     with open(filename, 'w') as f:
         f.write(data)
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def delete(sid):
     """
     Delete a scan
@@ -257,7 +257,7 @@ def delete(sid):
 
     connect('DELETE', '/scans/{0}'.format(scan_id))
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def history_delete(sid, hid):
     """
     Delete a historical scan.
@@ -268,14 +268,14 @@ def history_delete(sid, hid):
 
     connect('DELETE', '/scans/{0}/history/{1}'.format(sid, hid))
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_all_messages():
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
     the_messages = the_scan.get_queue_message(client_id = client_id)
     print the_messages
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def claim_a_message():
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
@@ -298,7 +298,7 @@ def claim_a_message():
     else:
         return ()
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_vulnerability(filename="", run_time=10):
     tree = ET.parse(filename)
     root = tree.getroot()
@@ -360,7 +360,7 @@ def get_vulnerability(filename="", run_time=10):
     testsuites.attrib = testsuites_attribs
     return tostring(testsuites)
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def update_queue_scan_started(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     config = ConfigParser.ConfigParser()
     config.read("general.config")
@@ -372,7 +372,7 @@ def update_queue_scan_started(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     if status == "not found":
         the_scan.post_queue_message(client_id=client_id, queue_name="ScanResponse", scan_id=scan_id, body=thing)
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839", scan_result="{}"):
     
     config = ConfigParser.ConfigParser()
@@ -390,7 +390,7 @@ def update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839", s
         the_scan.delete_queue_message(client_id=client_id, queue_name="ScanResponse", message_id = message_id)
         the_scan.post_queue_message(client_id=client_id, queue_name="ScanResponse", scan_id=scan_id, body=thing)
 
-@retry(stop_max_attempt_number=7)
+@retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_queue_scan_status(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     config = ConfigParser.ConfigParser()
     config.read("general.config")
