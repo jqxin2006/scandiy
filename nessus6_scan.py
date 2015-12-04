@@ -13,10 +13,9 @@ import zlib
 import threading
 from retrying import retry
 
-
 config = ConfigParser.ConfigParser()
 config.read("general.config")
-
+# set up Nessus scanning box
 url = config.get("nessus", "endpoint")
 verify = False
 token = ''
@@ -24,10 +23,9 @@ username = config.get("nessus", "username")
 password = config.get("nessus", "password")
 
 
-
-
 def build_url(resource):
     return '{0}{1}'.format(url, resource)
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def connect(method, resource, data=None, params=None):
@@ -44,13 +42,17 @@ def connect(method, resource, data=None, params=None):
     data = json.dumps(data)
 
     if method == 'POST':
-        r = requests.post(build_url(resource), data=data, headers=headers, verify=verify)
+        r = requests.post(build_url(resource), data=data,
+                          headers=headers, verify=verify)
     elif method == 'PUT':
-        r = requests.put(build_url(resource), data=data, headers=headers, verify=verify)
+        r = requests.put(build_url(resource), data=data,
+                         headers=headers, verify=verify)
     elif method == 'DELETE':
-        r = requests.delete(build_url(resource), data=data, headers=headers, verify=verify)
+        r = requests.delete(build_url(resource), data=data,
+                            headers=headers, verify=verify)
     else:
-        r = requests.get(build_url(resource), params=params, headers=headers, verify=verify)
+        r = requests.get(build_url(resource), params=params,
+                         headers=headers, verify=verify)
 
     # Exit if there is an error.
     if r.status_code != 200:
@@ -58,7 +60,7 @@ def connect(method, resource, data=None, params=None):
         print e['error']
         sys.exit()
 
-    # When downloading a scan we need the raw contents not the JSON data. 
+    # When downloading a scan we need the raw contents not the JSON data.
     if 'download' in resource:
         return r.content
 
@@ -68,6 +70,7 @@ def connect(method, resource, data=None, params=None):
         return r.json()
     except ValueError:
         return r.content
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def login(usr, pwd):
@@ -80,6 +83,7 @@ def login(usr, pwd):
 
     return data['token']
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def logout():
     """
@@ -87,6 +91,7 @@ def logout():
     """
 
     connect('DELETE', '/session')
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_policies():
@@ -101,6 +106,7 @@ def get_policies():
 
     return dict((p['title'], p['uuid']) for p in data['templates'])
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_history_ids(sid):
     """
@@ -113,6 +119,7 @@ def get_history_ids(sid):
 
     return dict((h['uuid'], h['history_id']) for h in data['history'])
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_scan_history(sid, hid):
     """
@@ -124,6 +131,7 @@ def get_scan_history(sid, hid):
     data = connect('GET', '/scans/{0}'.format(sid), params)
 
     return data['info']
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def add(name, desc, targets, pid):
@@ -145,6 +153,7 @@ def add(name, desc, targets, pid):
     data = connect('POST', '/scans', data=scan)
 
     return data['scan']
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def update(scan_id, name, desc, targets, pid=None):
@@ -170,6 +179,7 @@ def update(scan_id, name, desc, targets, pid=None):
 
     return data
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def launch(sid):
     """
@@ -182,6 +192,7 @@ def launch(sid):
 
     return data['scan_uuid']
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def status(sid, hid):
     """
@@ -189,10 +200,11 @@ def status(sid, hid):
 
     Get the historical information for the particular scan and hid. Return
     the status if available. If not return unknown.
-    """ 
+    """
 
     d = get_scan_history(sid, hid)
     return d['status']
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def export_status(sid, fid):
@@ -205,6 +217,7 @@ def export_status(sid, fid):
     data = connect('GET', '/scans/{0}/export/{1}/status'.format(sid, fid))
 
     return data['status'] == 'ready'
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def export(sid, hid):
@@ -230,6 +243,7 @@ def export(sid, hid):
 
     return fid
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def download(sid, fid):
     """
@@ -246,6 +260,7 @@ def download(sid, fid):
     with open(filename, 'w') as f:
         f.write(data)
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def delete(sid):
     """
@@ -256,6 +271,7 @@ def delete(sid):
     """
 
     connect('DELETE', '/scans/{0}'.format(scan_id))
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def history_delete(sid, hid):
@@ -268,18 +284,20 @@ def history_delete(sid, hid):
 
     connect('DELETE', '/scans/{0}/history/{1}'.format(sid, hid))
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_all_messages():
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
-    the_messages = the_scan.get_queue_message(client_id = client_id)
+    the_messages = the_scan.get_queue_message(client_id=client_id)
     print the_messages
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def claim_a_message():
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
-    json_msg = the_scan.claim_a_message(client_id = client_id)
+    json_msg = the_scan.claim_a_message(client_id=client_id)
     print " I am trying to claim a message!"
     print json_msg
     if len(json_msg) > 0:
@@ -292,11 +310,13 @@ def claim_a_message():
         msg_id = msg_id_claim_id.split("?")[0]
         print msg_id_claim_id
         # delete the message
-        the_scan.delete_queue_message(client_id=client_id, message_id = msg_id_claim_id)
+        the_scan.delete_queue_message(client_id=client_id,
+                                      message_id=msg_id_claim_id)
         print "delete the message with id of %s" % msg_id_claim_id
         return (scan_id, origin_id, ips)
     else:
         return ()
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_vulnerability(filename="", run_time=10):
@@ -304,17 +324,17 @@ def get_vulnerability(filename="", run_time=10):
     root = tree.getroot()
     issues = []
 
-    preferences = root.findall("Policy/Preferences/ServerPreferences/preference")
+    preferences = root.findall(
+        "Policy/Preferences/ServerPreferences/preference")
     for preference in preferences:
         result = {}
         for node in preference:
             result[node.tag] = node.text
         if result["name"] == "plugin_set":
             plugin_set = result["value"]
-    
     number_tests = len(plugin_set.split(";"))
 
-    severity_match = {0:"S4", 1:"S3", 2:"S2", 3:"S1", 4:"S0"}
+    severity_match = {0: "S4", 1: "S3", 2: "S2", 3: "S1", 4: "S0"}
     testsuites = Element("testsuites")
     number_issues = 0
     for elem in root.findall("Report/ReportHost"):
@@ -337,18 +357,18 @@ def get_vulnerability(filename="", run_time=10):
                 elif atom.tag == "plugin_output":
                     plugin_output = atom.text
 
-            failure.text = u"Host: {}\n\nDescription: {}\n\nSynopsis: {}\n\nPlugin Output: {}\n".format(host, description, synopsis, plugin_output) 
+            failure.text = u"Host: {}\n\nDescription: {}\n\nSynopsis: \
+                            {}\n\nPlugin Output: {}\n".format(
+                            host, description, synopsis, plugin_output)
             testcase_attribs = {}
-            testcase_attribs["severity"] = severity_match[int(attribs["severity"])]
+            sev_level = int(attribs["severity"])
+            testcase_attribs["severity"] = severity_match[sev_level]
             testcase_attribs["name"] = attribs["pluginName"]
             testcase_attribs["pluginID"] = attribs["pluginID"]
             testcase_attribs["pluginName"] = attribs["pluginName"]
             testcase_attribs["classname"] = attribs["pluginID"]
-            
             testcase.attrib = testcase_attribs
-            #print attribs
             issues.append(issue)
-    #print issues
     testsuites_attribs = {}
     testsuites_attribs["failures"] = str(number_issues)
     testsuites_attribs["errors"] = "0"
@@ -360,35 +380,50 @@ def get_vulnerability(filename="", run_time=10):
     testsuites.attrib = testsuites_attribs
     return tostring(testsuites)
 
+
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def update_queue_scan_started(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     config = ConfigParser.ConfigParser()
     config.read("general.config")
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
-    thing = {"status": "scan started", "start_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()) }
+    thing = {"status": "scan started", "start_time": strftime(
+                                "%Y-%m-%d %H:%M:%S", gmtime())}
     (status, href, start_time) = get_queue_scan_status(scan_id)
     print "updated scan id is:" + scan_id
     if status == "not found":
-        the_scan.post_queue_message(client_id=client_id, queue_name="ScanResponse", scan_id=scan_id, body=thing)
+        the_scan.post_queue_message(client_id=client_id,
+                                    queue_name="ScanResponse",
+                                    scan_id=scan_id,
+                                    body=thing)
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
-def update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839", scan_result="{}"):
-    
+def update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839",
+                               scan_result="{}"):
+
     config = ConfigParser.ConfigParser()
     config.read("general.config")
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
     (status, href, start_time) = get_queue_scan_status(scan_id)
-    thing = {"status": "scan finished", "finish_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()),
-             "start_time": start_time, "scan_result" : scan_result}
+    thing = {"status": "scan finished",
+             "finish_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()),
+             "start_time": start_time,
+             "scan_result": scan_result}
     print status
     print scan_id
     if status == "scan started":
         message_id = href.split("/")[-1]
         print message_id
-        the_scan.delete_queue_message(client_id=client_id, queue_name="ScanResponse", message_id = message_id)
-        the_scan.post_queue_message(client_id=client_id, queue_name="ScanResponse", scan_id=scan_id, body=thing)
+        the_scan.delete_queue_message(client_id=client_id,
+                                      queue_name="ScanResponse",
+                                      message_id=message_id)
+        the_scan.post_queue_message(client_id=client_id,
+                                    queue_name="ScanResponse",
+                                    scan_id=scan_id,
+                                    body=thing)
+
 
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_queue_scan_status(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
@@ -396,33 +431,36 @@ def get_queue_scan_status(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     config.read("general.config")
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
-    the_messages = the_scan.get_queue_messages(queue_name="ScanResponse", client_id=client_id)
+    the_messages = the_scan.get_queue_messages(queue_name="ScanResponse",
+                                               client_id=client_id)
     status = "not found"
     href = "none"
     start_time = "none"
 
-    if len(the_messages)>0:
+    if len(the_messages) > 0:
         the_messages_list = the_messages["messages"]
         for message in the_messages_list:
-            if  message["body"]["scan_id"] == scan_id:
-                status =  message["body"]["status"]
+            if (message["body"]["scan_id"] == scan_id):
+                status = message["body"]["status"]
                 start_time = message["body"]["start_time"]
                 href = message["href"]
     return (status, href, start_time)
 
 
-def nessus_scan_ips(ips="127.0.0.1", scan_name="test scan", scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
-    ''' Call Nessus scanner to scan given IPs and 
-        given scan name. It returns the scan result in 
+def nessus_scan_ips(ips="127.0.0.1",
+                    scan_name="test scan",
+                    scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
+    ''' Call Nessus scanner to scan given IPs and
+        given scan name. It returns the scan result in
         JSON format
     '''
 
     start_time = time.time()
     print('Login')
-    global token 
+    global token
     token = login(username, password)
 
-    #update queue with statu of "scan started"
+    # update queue with statu of "scan started"
     print "scan_id is: " + scan_id
     update_queue_scan_started(scan_id)
 
@@ -431,11 +469,11 @@ def nessus_scan_ips(ips="127.0.0.1", scan_name="test scan", scan_id="cb6399bb-3e
 
     print policies
     policy_id = policies['Internal PCI Network Scan']
-    scan_data = add(scan_name + scan_id, 'Create a new scan with API', ips, policy_id)
+    scan_data = add(scan_name + scan_id,
+                    'Create a new scan with API',
+                    ips,
+                    policy_id)
     nessus_scan_id = scan_data['id']
-
-    #print('Updating scan with new targets.')
-    #update(scan_id, scan_data['name'], scan_data['description'], '10.230.228.0/24')
 
     print('Launching new scan.')
     nessus_scan_uuid = launch(nessus_scan_id)
@@ -452,63 +490,31 @@ def nessus_scan_ips(ips="127.0.0.1", scan_name="test scan", scan_id="cb6399bb-3e
     filename = 'nessus_{0}_{1}.nessus'.format(nessus_scan_id, file_id)
     print filename
     print "%s with scan id %s" % (filename, scan_id)
-    #history_delete(scan_id, history_id)
-    #delete(scan_id)
     print('Logout')
     logout()
 
     end_time = time.time()
     run_time = end_time - start_time
     # get scan result from the downloaded file
-    scan_result = get_vulnerability(filename = filename, run_time=run_time)
-    #scan_result = get_vulnerability(filename="nessus_1253_139115758.nessus", run_time=100)
+    scan_result = get_vulnerability(filename=filename, run_time=run_time)
     print "update the queue"
 
     # update the queue with scan result and the status of "san finished"
-    update_queue_scan_finished(scan_id, scan_result=base64.b64encode(scan_result.encode("zlib")))
-    
+    update_queue_scan_finished(scan_id=scan_id,
+                               scan_result=base64.b64encode(
+                                           scan_result.encode("zlib")))
 
 if __name__ == '__main__':
-    
-    while 1==1:
+    while 1 == 1:
         the_message = claim_a_message()
         # get a message with IP address
         if (len(the_message)) > 0:
             our_scan_id = the_message[0]
             origin_id = the_message[1]
             ips = the_message[2]
-            thread_scan = threading.Thread(target=nessus_scan_ips, kwargs=dict(ips=ips, scan_id=our_scan_id))
+            thread_scan = threading.Thread(target=nessus_scan_ips,
+                                           kwargs=dict(ips=ips,
+                                                       scan_id=our_scan_id))
             thread_scan.start()
         else:
             time.sleep(60)
-
-
-
-    '''the_result = claim_a_message()
-    if (len(the_result) > 0):
-        our_scan_id = the_result[0]
-        message = the_result[1]
-        claim_id = the_result[2]
-
-    print the_result '''
-
-    #our_scan_id = "cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"   
-    #scan_result = get_vulnerability("nessus_1024_510511181.nessus")
-    #scan_status = "started"
-
-    #print scan_result
-
-    #update_queue_scan_started(scan_id="f2467ec8-9da6-4ad6-be26-ca515c2f0cde")
-    #get_queue_scan_status()
-
-    #print len(base64.b64encode(scan_result.encode("zlib")))
-
-    #update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969830", scan_result=base64.b64encode(scan_result.encode("zlib")))
-
-
-
-    
-    #print the_result    
-    #get_vulnerability("nessus_1024_510511181.nessus")
-    #nessus_scan_ips()
-
