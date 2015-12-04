@@ -15,15 +15,18 @@ class Identity(object):
         self.username = config.get("identity", "username")
         self.apikey = config.get("identity", "apikey")
 
-
     def get_token(self):
         url = "{}/tokens".format(self.endpoint)
-        headers = {"Content-type" : "application/json",
-                   "Accept" : "application/json"}
-        payload = {"auth":{"RAX-KSKEY:apiKeyCredentials":{"username":self.username,"apiKey":self.apikey}}}
-        
-        resp = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
-        
+        headers = {"Content-type": "application/json",
+                   "Accept": "application/json"}
+        payload = {"auth": {"RAX-KSKEY:apiKeyCredentials":
+                   {"username": self.username,
+                    "apiKey": self.apikey}}}
+
+        resp = requests.post(url,
+                             headers=headers,
+                             data=json.dumps(payload),
+                             verify=False)
 
         if resp.status_code == 200:
             resp_json = resp.json()
@@ -35,4 +38,3 @@ class Identity(object):
 if __name__ == '__main__':
     one_identity = Identity()
     token = one_identity.get_token()
-    print token

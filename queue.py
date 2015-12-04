@@ -6,6 +6,7 @@ import re
 import ConfigParser
 import identity
 
+
 class ScanQueue(object):
 
     def __init__(self):
@@ -16,43 +17,55 @@ class ScanQueue(object):
         one_identity = identity.Identity()
         self.token = one_identity.get_token()
 
-    def get_queue_messages(self, queue_name="ScanRequest", client_id=str(uuid.uuid4())):
-        url = "{}/queues/{}/messages?echo=true&limit=100".format(self.endpoint, queue_name)
-        headers = {"Content-type" : "application/json",
-                   "Accept" : "application/json",
-                   "X-Auth-Token" : self.token, 
-                   "X-Project-Id" : self.project_id,
-                   "Client-ID" : client_id}
+    def get_queue_messages(self,
+                           queue_name="ScanRequest",
+                           client_id=str(uuid.uuid4())):
+        url = "{}/queues/{}/messages?echo=true&limit=100".format(
+                                          self.endpoint, queue_name)
+        headers = {"Content-type": "application/json",
+                   "Accept": "application/json",
+                   "X-Auth-Token": self.token,
+                   "X-Project-Id": self.project_id,
+                   "Client-ID": client_id}
         resp = requests.get(url, headers=headers, verify=False)
         if resp.status_code == 204:
-          return {}
+            return {}
         else:
-          return resp.json()  
-        
-   
-    def delete_queue_message(self, queue_name="ScanRequest", client_id=str(uuid.uuid4()), message_id=""):
-        url = "{}/queues/{}/messages/{}".format(self.endpoint, queue_name, message_id)
-        headers = {"Content-type" : "application/json",
-                   "Accept" : "application/json",
-                   "X-Auth-Token" : self.token, 
-                   "X-Project-Id" : self.project_id,
-                   "Client-ID" : client_id}
+            return resp.json()
+
+    def delete_queue_message(self,
+                             queue_name="ScanRequest",
+                             client_id=str(uuid.uuid4()),
+                             message_id=""):
+        url = "{}/queues/{}/messages/{}".format(self.endpoint,
+                                                queue_name,
+                                                message_id)
+        headers = {"Content-type": "application/json",
+                   "Accept": "application/json",
+                   "X-Auth-Token": self.token,
+                   "X-Project-Id": self.project_id,
+                   "Client-ID": client_id}
         resp = requests.delete(url, headers=headers, verify=False)
         if resp.status_code == 204:
-          return {}
+            return {}
         else:
-          return resp.json()  
+            return resp.json()
 
-    def claim_a_message(self, queue_name="ScanRequest", client_id=str(uuid.uuid4())):
+    def claim_a_message(self,
+                        queue_name="ScanRequest",
+                        client_id=str(uuid.uuid4())):
         url = "{}/queues/{}/claims?limit=1".format(self.endpoint, queue_name)
-        headers = {"Content-type" : "application/json",
-                   "Accept" : "application/json",
-                   "X-Auth-Token" : self.token, 
-                   "X-Project-Id" : self.project_id,
-                   "Client-ID" : client_id}
-        payload = {"ttl":3000, "grace":3000}
+        headers = {"Content-type": "application/json",
+                   "Accept": "application/json",
+                   "X-Auth-Token": self.token,
+                   "X-Project-Id": self.project_id,
+                   "Client-ID": client_id}
+        payload = {"ttl": 3000, "grace": 3000}
         print url
-        resp = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
+        resp = requests.post(url,
+                             headers=headers,
+                             data=json.dumps(payload),
+                             verify=False)
         if resp.status_code == 201:
             claim_id = resp.headers["Location"].split("/")[-1]
             print claim_id
@@ -61,34 +74,46 @@ class ScanQueue(object):
         else:
             return ()
 
-    def release_a_claim(self, queue_name="ScanRequest", client_id=str(uuid.uuid4()), claim_id=""):
-        url = "{}/queues/{}/claims/{}".format(self.endpoint, queue_name, claim_id)
-        headers = {"Content-type" : "application/json",
-                   "Accept" : "application/json",
-                   "X-Auth-Token" : self.token, 
-                   "X-Project-Id" : self.project_id,
-                   "Client-ID" : client_id}
+    def release_a_claim(self,
+                        queue_name="ScanRequest",
+                        client_id=str(uuid.uuid4()),
+                        claim_id=""):
+        url = "{}/queues/{}/claims/{}".format(self.endpoint,
+                                              queue_name,
+                                              claim_id)
+        headers = {"Content-type": "application/json",
+                   "Accept": "application/json",
+                   "X-Auth-Token": self.token,
+                   "X-Project-Id": self.project_id,
+                   "Client-ID": client_id}
         resp = requests.delete(url, headers=headers, verify=False)
         if resp.status_code == 204:
             return True
         else:
             return False
 
-    def post_queue_message(self, scan_id="none", queue_name="ScanRequest", client_id=str(uuid.uuid4()), body={"1":"2"}):
+    def post_queue_message(self,
+                           scan_id="none",
+                           queue_name="ScanRequest",
+                           client_id=str(uuid.uuid4()),
+                           body={"1": "2"}):
         url = "{}/queues/{}/messages".format(self.endpoint, queue_name)
-        headers = {"Content-type" : "application/json",
-                   "Accept" : "application/json",
-                   "X-Auth-Token" : self.token, 
-                   "X-Project-Id" : self.project_id,
-                   "Client-ID" : client_id}
+        headers = {"Content-type": "application/json",
+                   "Accept": "application/json",
+                   "X-Auth-Token": self.token,
+                   "X-Project-Id": self.project_id,
+                   "Client-ID": client_id}
         payload = []
         if scan_id == "none":
             body["scan_id"] = str(uuid.uuid4())
         else:
             body["scan_id"] = scan_id
 
-        payload.append({"ttl":30000, "body":body})
-        resp = requests.post(url, headers=headers, data=json.dumps(payload), verify=False)
+        payload.append({"ttl": 30000, "body": body})
+        resp = requests.post(url,
+                             headers=headers,
+                             data=json.dumps(payload),
+                             verify=False)
         print resp.status_code
         print resp.text
         if resp.status_code == 201:
