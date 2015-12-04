@@ -9,6 +9,7 @@ import ConfigParser
 import base64
 import zlib
 
+
 class ScanEngine(object):
 
     def get_scans(self):
@@ -25,7 +26,8 @@ class ScanEngine(object):
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
         the_scan = queue.ScanQueue()
-        the_messages = the_scan.get_queue_messages(queue_name="ScanResponse", client_id=client_id)
+        the_messages = the_scan.get_queue_messages(queue_name="ScanResponse",
+                                                   client_id=client_id)
         the_result = "{}"
         print the_messages
         print "Here is the scan_id:" + scan_id
@@ -34,15 +36,17 @@ class ScanEngine(object):
         else:
             for message in the_messages["messages"]:
                 print message["body"]["scan_id"]
-                if  message["body"]["scan_id"] == scan_id:
-                    the_result =  message["body"]
+                if message["body"]["scan_id"] == scan_id:
+                    the_result = message["body"]
                     if the_result["status"] == "scan finished":
                         temp_scan_result = the_result["scan_result"]
-                        the_result["scan_result"] = base64.b64decode(temp_scan_result).decode("zlib")
+                        the_result["scan_result"] = base64.b64decode(
+                            temp_scan_result).decode("zlib")
                         return the_result
                     else:
                         return the_result
             return the_result
+
     def add_scan(self, thing):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
@@ -108,7 +112,6 @@ class AuthMiddleware(object):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
         solum_token = config.get("apinode", "token")
-        
         if token == solum_token:
             return True  # Suuuuuure it's valid...
         else:
@@ -183,7 +186,6 @@ class NessusScans(object):
         self.db = db
         self.logger = logging.getLogger('scannerapp.' + __name__)
 
-
     def on_get(self, req, resp):
         marker = req.get_param('marker') or ''
         limit = req.get_param_as_int('limit') or 50
@@ -210,9 +212,6 @@ class NessusScans(object):
 
         resp.set_header('X-Powered-By', 'Small Furry Creatures')
         resp.status = falcon.HTTP_200
-
-
-
 
     @falcon.before(max_body(64 * 1024))
     def on_post(self, req, resp):
