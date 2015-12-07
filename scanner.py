@@ -35,9 +35,12 @@ class ScanEngine(object):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
-        the_scan = queue.ScanQueue()
-        the_messages = the_scan.get_queue_messages(client_id=client_id)
-        return the_messages
+        try:
+            the_scan = queue.ScanQueue(my_logger=my_logger)
+            the_messages = the_scan.get_queue_messages(client_id=client_id)
+            return the_messages
+        except Exception as ex:
+            my_logger.error(ex)
 
     @retry(stop_max_attempt_number=7, wait_fixed=5000)
     def find_scan_in_queue(self, scan_id="", queue_name="ScanRequest"):
@@ -49,19 +52,23 @@ class ScanEngine(object):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
-        the_scan = queue.ScanQueue()
-        the_messages = the_scan.get_queue_messages(queue_name=queue_name,
-                                                   client_id=client_id)
-        my_logger.debug("check {} for scan wth id {}".format(
-                                    queue_name, scan_id))
+        try:
 
-        if len(the_messages) < 1:
-            return False
-        else:
-            for message in the_messages["messages"]:
-                if message["body"]["scan_id"] == scan_id:
-                    return True
-            return False
+            the_scan = queue.ScanQueue(my_logger=my_logger)
+            the_messages = the_scan.get_queue_messages(queue_name=queue_name,
+                                                       client_id=client_id)
+            my_logger.debug("check {} for scan wth id {}".format(
+                                        queue_name, scan_id))
+
+            if len(the_messages) < 1:
+                return False
+            else:
+                for message in the_messages["messages"]:
+                    if message["body"]["scan_id"] == scan_id:
+                        return True
+                return False
+        except Exception as ex:
+            my_logger.error(ex)
 
     @retry(stop_max_attempt_number=7, wait_fixed=5000)
     def get_scan_status(self, scan_id=""):
@@ -79,46 +86,49 @@ class ScanEngine(object):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
-        the_scan = queue.ScanQueue()
+        the_scan = queue.ScanQueue(my_logger=my_logger)
 
-        if (self.find_scan_in_queue(queue_name="ScanRequest",
-                                    scan_id=scan_id) == False and
-            self.find_scan_in_queue(queue_name="ScanResponse",
-                                    scan_id=scan_id) == False):
-            return "{{'id':{}, 'status':'not found'}}".format(scan_id)
+        try:
+            if (self.find_scan_in_queue(queue_name="ScanRequest",
+                                        scan_id=scan_id) == False and
+                self.find_scan_in_queue(queue_name="ScanResponse",
+                                        scan_id=scan_id) == False):
+                return "{{'id':{}, 'status':'not found'}}".format(scan_id)
 
-        if (self.find_scan_in_queue(queue_name="ScanRequest",
-                                    scan_id=scan_id) == True and
-            self.find_scan_in_queue(queue_name="ScanResponse",
-                                    scan_id=scan_id) == False):
-            return "{{'id':{}, 'status':'not started'}}".format(scan_id)
+            if (self.find_scan_in_queue(queue_name="ScanRequest",
+                                        scan_id=scan_id) == True and
+                self.find_scan_in_queue(queue_name="ScanResponse",
+                                        scan_id=scan_id) == False):
+                return "{{'id':{}, 'status':'not started'}}".format(scan_id)
 
-        if (self.find_scan_in_queue(queue_name="ScanResponse",
-                                    scan_id=scan_id) == True):
-            the_messages = the_scan.get_queue_messages(
-                                    queue_name="ScanResponse",
-                                    client_id=client_id)
-            the_result = "{}"
-            for message in the_messages["messages"]:
-                my_logger.debug("found scan with id={}".format(
-                        message["body"]["scan_id"]))
-                if message["body"]["scan_id"] == scan_id:
-                    the_result = message["body"]
-                    if the_result["status"] == "scan finished":
-                        temp_scan_result = the_result["scan_result"]
-                        the_result["scan_result"] = base64.b64decode(
-                            temp_scan_result).decode("zlib")
-                        return the_result
-                    else:
-                        return the_result
-            return the_result
+            if (self.find_scan_in_queue(queue_name="ScanResponse",
+                                        scan_id=scan_id) == True):
+                the_messages = the_scan.get_queue_messages(
+                                        queue_name="ScanResponse",
+                                        client_id=client_id)
+                the_result = "{}"
+                for message in the_messages["messages"]:
+                    my_logger.debug("found scan with id={}".format(
+                            message["body"]["scan_id"]))
+                    if message["body"]["scan_id"] == scan_id:
+                        the_result = message["body"]
+                        if the_result["status"] == "scan finished":
+                            temp_scan_result = the_result["scan_result"]
+                            the_result["scan_result"] = base64.b64decode(
+                                temp_scan_result).decode("zlib")
+                            return the_result
+                        else:
+                            return the_result
+                return the_result
+        except Exception as ex:
+            my_logger.error(ex)
 
     @retry(stop_max_attempt_number=7, wait_fixed=5000)
     def add_scan(self, thing):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
-        the_scan = queue.ScanQueue()
+        the_scan = queue.ScanQueue(my_logger=my_logger)
         my_logger.debug("adding the scan")
         my_logger.info("create scan with the body {}".format(thing))
         scan_id = the_scan.post_queue_message(client_id=client_id, body=thing)

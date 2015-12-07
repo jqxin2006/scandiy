@@ -9,13 +9,16 @@ import identity
 
 class ScanQueue(object):
 
-    def __init__(self):
+    def __init__(self, my_logger=None):
         config = ConfigParser.ConfigParser()
         config.read("general.config")
+        self.my_logger = my_logger
         self.endpoint = config.get("queue", "endpoint")
         self.project_id = config.get("queue", "project_id")
-        one_identity = identity.Identity()
+        my_logger.info("trying to call identity to get token")
+        one_identity = identity.Identity(my_logger=my_logger)
         self.token = one_identity.get_token()
+        my_logger.info("got the token!")
 
     def get_queue_messages(self,
                            queue_name="ScanRequest",
@@ -27,7 +30,11 @@ class ScanQueue(object):
                    "X-Auth-Token": self.token,
                    "X-Project-Id": self.project_id,
                    "Client-ID": client_id}
-        resp = requests.get(url, headers=headers, verify=False)
+        try:
+            resp = requests.get(url, headers=headers, verify=False)
+        except Exception as ex:
+            self.my_logger.error(ex)
+
         if resp.status_code == 204:
             return {}
         else:
@@ -45,7 +52,10 @@ class ScanQueue(object):
                    "X-Auth-Token": self.token,
                    "X-Project-Id": self.project_id,
                    "Client-ID": client_id}
-        resp = requests.delete(url, headers=headers, verify=False)
+        try:
+            resp = requests.delete(url, headers=headers, verify=False)
+        except Exception as ex:
+            self.my_logger.error(ex)
         if resp.status_code == 204:
             return {}
         else:
@@ -61,14 +71,19 @@ class ScanQueue(object):
                    "X-Project-Id": self.project_id,
                    "Client-ID": client_id}
         payload = {"ttl": 3000, "grace": 3000}
-        print url
-        resp = requests.post(url,
-                             headers=headers,
-                             data=json.dumps(payload),
-                             verify=False)
+        self.my_logger.debug("the url is: {}".format(url))
+        try:
+            resp = requests.post(
+                            url,
+                            headers=headers,
+                            data=json.dumps(payload),
+                            verify=False)
+        except Exception as ex:
+            self.my_logger.error(ex)
+
         if resp.status_code == 201:
             claim_id = resp.headers["Location"].split("/")[-1]
-            print claim_id
+            self.my_logger.debug("claim_id is {}".format(claim_id))
             resp_json = resp.json()
             return (resp_json)
         else:
@@ -86,7 +101,11 @@ class ScanQueue(object):
                    "X-Auth-Token": self.token,
                    "X-Project-Id": self.project_id,
                    "Client-ID": client_id}
-        resp = requests.delete(url, headers=headers, verify=False)
+        try:
+            resp = requests.delete(url, headers=headers, verify=False)
+        except Exception as ex:
+            self.my_logger.error(ex)
+
         if resp.status_code == 204:
             return True
         else:
@@ -110,12 +129,17 @@ class ScanQueue(object):
             body["scan_id"] = scan_id
 
         payload.append({"ttl": 30000, "body": body})
-        resp = requests.post(url,
-                             headers=headers,
-                             data=json.dumps(payload),
-                             verify=False)
-        print resp.status_code
-        print resp.text
+        try:
+            resp = requests.post(
+                            url,
+                            headers=headers,
+                            data=json.dumps(payload),
+                            verify=False)
+        except Exception as ex:
+            self.my_logger.error(ex)
+
+        self.my_logger.debug("status code is: {}".format(resp.status_code))
+        self.my_logger.debug("resp.text is: {}".format(resp.text))
         if resp.status_code == 201:
             return body["scan_id"]
         else:

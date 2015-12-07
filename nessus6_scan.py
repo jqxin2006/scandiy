@@ -307,7 +307,7 @@ def history_delete(sid, hid):
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def get_all_messages():
     client_id = config.get("nessus", "client_id")
-    the_scan = queue.ScanQueue()
+    the_scan = queue.ScanQueue(my_logger=my_logger)
     the_messages = the_scan.get_queue_message(client_id=client_id)
     print the_messages
 
@@ -315,7 +315,7 @@ def get_all_messages():
 @retry(stop_max_attempt_number=7, wait_fixed=5000)
 def claim_a_message():
     client_id = config.get("nessus", "client_id")
-    the_scan = queue.ScanQueue()
+    the_scan = queue.ScanQueue(my_logger=my_logger)
     json_msg = the_scan.claim_a_message(client_id=client_id)
     my_logger.info(" I am trying to claim a message!")
     my_logger.info(json_msg)
@@ -405,7 +405,7 @@ def update_queue_scan_started(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     config = ConfigParser.ConfigParser()
     config.read("general.config")
     client_id = config.get("nessus", "client_id")
-    the_scan = queue.ScanQueue()
+    the_scan = queue.ScanQueue(my_logger=my_logger)
     thing = {"status": "scan started", "start_time": strftime(
                                 "%Y-%m-%d %H:%M:%S", gmtime())}
     (status, href, start_time) = get_queue_scan_status(scan_id)
@@ -424,7 +424,7 @@ def update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839",
     config = ConfigParser.ConfigParser()
     config.read("general.config")
     client_id = config.get("nessus", "client_id")
-    the_scan = queue.ScanQueue()
+    the_scan = queue.ScanQueue(my_logger=my_logger)
     (status, href, start_time) = get_queue_scan_status(scan_id)
     thing = {"status": "scan finished",
              "finish_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()),
@@ -448,7 +448,7 @@ def get_queue_scan_status(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     config = ConfigParser.ConfigParser()
     config.read("general.config")
     client_id = config.get("nessus", "client_id")
-    the_scan = queue.ScanQueue()
+    the_scan = queue.ScanQueue(my_logger=my_logger)
     the_messages = the_scan.get_queue_messages(queue_name="ScanResponse",
                                                client_id=client_id)
     status = "not found"
