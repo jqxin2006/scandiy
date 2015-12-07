@@ -13,7 +13,6 @@ import logging
 import logging.handlers
 
 LOG_FILENAME = './logs/scanner.log'
-
 # Set up a specific logger with our desired output level
 my_logger = logging.getLogger('apinode')
 my_logger.setLevel(logging.DEBUG)
@@ -23,11 +22,9 @@ handler = logging.handlers.RotatingFileHandler(LOG_FILENAME,
                                                maxBytes=2000000,
                                                backupCount=10,
                                                )
-
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
-
 my_logger.addHandler(handler)
 
 
@@ -122,7 +119,8 @@ class ScanEngine(object):
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
         the_scan = queue.ScanQueue()
-        my_logger.info("create scan with the body {}".format(str(body)))
+        my_logger.debug("adding the scan")
+        my_logger.info("create scan with the body {}".format(thing))
         scan_id = the_scan.post_queue_message(client_id=client_id, body=thing)
         my_logger.info("create scan with id {}".format(scan_id))
         return scan_id
@@ -290,7 +288,7 @@ class NessusScans(object):
     def on_post(self, req, resp):
         try:
             doc = req.context['doc']
-            print doc
+            my_logger.debug("POST data for scans:{}".format(doc))
         except KeyError:
             raise falcon.HTTPBadRequest(
                 'Missing thing',
@@ -342,10 +340,11 @@ app = falcon.API(middleware=[
     RequireJSON(),
     JSONTranslator(),
 ])
-
+my_logger.info("Create app")
 db = ScanEngine()
 scans = NessusScans(db)
 scan = NessusScan(db)
+my_logger.info("Adding route for the app")
 app.add_route('/scans/{scan_id}', scan)
 app.add_route('/scans', scans)
 
