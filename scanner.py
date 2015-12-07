@@ -23,20 +23,62 @@ class ScanEngine(object):
         return the_messages
 
     @retry(stop_max_attempt_number=7, wait_fixed=5000)
-    def get_scan_status(self, scan_id):
+    def find_scan_in_queue(self, scan_id="", queue_name="ScanRequest"):
+        """Find whether the given scan is in the given queue
+
+        Find whether the given queue contains the given scan. It returns
+        Ture is the matched scan is found. Otherwise, it returns False.
+        """
+        config = ConfigParser.ConfigParser()
+        config.read("general.config")
+        client_id = config.get("apinode", "client_id")
+        the_scan = queue.ScanQueue()
+        the_messages = the_scan.get_queue_messages(queue_name=queue_name,
+                                                   client_id=client_id)
+        if len(the_messages) < 1:
+            return False
+        else:
+            for message in the_messages["messages"]:
+                if message["body"]["scan_id"] == scan_id:
+                    return True
+            return False
+
+    @retry(stop_max_attempt_number=7, wait_fixed=5000)
+    def get_scan_status(self, scan_id=""):
+        """Return the status of the scan
+
+        Returns the status of the scan based on the scan id. It checks both
+        ScanResponse and ScanRequest queues for the scan. If none is found
+        a message with "not found" is returned. If a matched one is found
+        in ScanRequest only, "not started" is returned. If a matched one is
+        found in ScanResponse only, the status within the queue is returned
+        with possible scan results.
+
+        """
 
         config = ConfigParser.ConfigParser()
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
         the_scan = queue.ScanQueue()
-        the_messages = the_scan.get_queue_messages(queue_name="ScanResponse",
-                                                   client_id=client_id)
-        the_result = "{}"
-        print the_messages
-        print "Here is the scan_id:" + scan_id
-        if len(the_messages) < 1:
+
+        if (self.find_scan_in_queue(queue_name="ScanRequest",
+                                    scan_id=scan_id) == False and
+            self.find_scan_in_queue(queue_name="ScanResponse",
+                                    scan_id=scan_id) == False):
+            return "{{'id':{}, 'status':'not found'}}".format(scan_id)
+
+        if (self.find_scan_in_queue(queue_name="ScanRequest",
+                                    scan_id=scan_id) == True and
+            self.find_scan_in_queue(queue_name="ScanResponse",
+                                    scan_id=scan_id) == False):
             return "{{'id':{}, 'status':'not started'}}".format(scan_id)
-        else:
+
+        if (self.find_scan_in_queue(queue_name="ScanResponse",
+                                    scan_id=scan_id) == True):
+            the_messages = the_scan.get_queue_messages(
+                                    queue_name="ScanResponse",
+                                    client_id=client_id)
+            the_result = "{}"
             for message in the_messages["messages"]:
                 print message["body"]["scan_id"]
                 if message["body"]["scan_id"] == scan_id:
@@ -49,6 +91,7 @@ class ScanEngine(object):
                     else:
                         return the_result
             return the_result
+
     @retry(stop_max_attempt_number=7, wait_fixed=5000)
     def add_scan(self, thing):
         config = ConfigParser.ConfigParser()
