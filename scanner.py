@@ -12,7 +12,7 @@ from retrying import retry
 import logging
 import logging.handlers
 
-LOG_FILENAME = 'scanner.log'
+LOG_FILENAME = './logs/scanner.log'
 
 # Set up a specific logger with our desired output level
 my_logger = logging.getLogger('apinode')

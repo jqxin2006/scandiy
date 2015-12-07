@@ -24,7 +24,7 @@ token = ''
 username = config.get("nessus", "username")
 password = config.get("nessus", "password")
 
-LOG_FILENAME = 'scanner.log'
+LOG_FILENAME = './logs/scanner.log'
 # Set up a specific logger with our desired output level
 my_logger = logging.getLogger('nessus_agent')
 my_logger.setLevel(logging.DEBUG)
