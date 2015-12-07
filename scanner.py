@@ -9,6 +9,26 @@ import ConfigParser
 import base64
 import zlib
 from retrying import retry
+import logging
+import logging.handlers
+
+LOG_FILENAME = 'scanner.log'
+
+# Set up a specific logger with our desired output level
+my_logger = logging.getLogger('apinode')
+my_logger.setLevel(logging.DEBUG)
+
+# Add the log message handler to the logger
+handler = logging.handlers.RotatingFileHandler(LOG_FILENAME,
+                                               maxBytes=2000000,
+                                               backupCount=10,
+                                               )
+
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+
+my_logger.addHandler(handler)
 
 
 class ScanEngine(object):
@@ -35,6 +55,9 @@ class ScanEngine(object):
         the_scan = queue.ScanQueue()
         the_messages = the_scan.get_queue_messages(queue_name=queue_name,
                                                    client_id=client_id)
+        my_logger.debug("check {} for scan wth id {}".format(
+                                    queue_name, scan_id))
+
         if len(the_messages) < 1:
             return False
         else:
@@ -80,7 +103,8 @@ class ScanEngine(object):
                                     client_id=client_id)
             the_result = "{}"
             for message in the_messages["messages"]:
-                print message["body"]["scan_id"]
+                my_logger.debug("found scan with id={}".format(
+                        message["body"]["scan_id"]))
                 if message["body"]["scan_id"] == scan_id:
                     the_result = message["body"]
                     if the_result["status"] == "scan finished":
@@ -98,7 +122,9 @@ class ScanEngine(object):
         config.read("general.config")
         client_id = config.get("apinode", "client_id")
         the_scan = queue.ScanQueue()
+        my_logger.info("create scan with the body {}".format(str(body)))
         scan_id = the_scan.post_queue_message(client_id=client_id, body=thing)
+        my_logger.info("create scan with id {}".format(scan_id))
         return scan_id
 
 
@@ -230,13 +256,14 @@ class NessusScans(object):
 
     def __init__(self, db):
         self.db = db
-        self.logger = logging.getLogger('scannerapp.' + __name__)
+        self.logger = my_logger
 
     def on_get(self, req, resp):
         marker = req.get_param('marker') or ''
         limit = req.get_param_as_int('limit') or 50
 
         try:
+
             result = self.db.get_scans()
         except Exception as ex:
             self.logger.error(ex)
@@ -279,7 +306,7 @@ class NessusScan(object):
 
     def __init__(self, db):
         self.db = db
-        self.logger = logging.getLogger('scannerapp.' + __name__)
+        self.logger = my_logger
 
     def on_get(self, req, resp, scan_id):
         marker = req.get_param('marker') or ''

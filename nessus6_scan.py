@@ -12,6 +12,8 @@ import base64
 import zlib
 import threading
 from retrying import retry
+import logging
+import logging.handlers
 
 config = ConfigParser.ConfigParser()
 config.read("general.config")
@@ -21,6 +23,22 @@ verify = False
 token = ''
 username = config.get("nessus", "username")
 password = config.get("nessus", "password")
+
+LOG_FILENAME = 'scanner.log'
+# Set up a specific logger with our desired output level
+my_logger = logging.getLogger('nessus_agent')
+my_logger.setLevel(logging.DEBUG)
+# Add the log message handler to the logger
+handler = logging.handlers.RotatingFileHandler(LOG_FILENAME,
+                                               maxBytes=2000000,
+                                               backupCount=10,
+                                               )
+
+formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+
+my_logger.addHandler(handler)
 
 
 def build_url(resource):
@@ -57,7 +75,7 @@ def connect(method, resource, data=None, params=None):
     # Exit if there is an error.
     if r.status_code != 200:
         e = r.json()
-        print e['error']
+        my_logger.error(e['error'])
         sys.exit()
 
     # When downloading a scan we need the raw contents not the JSON data.
@@ -203,6 +221,7 @@ def status(sid, hid):
     """
 
     d = get_scan_history(sid, hid)
+    my_logger.info(d)
     return d['status']
 
 
@@ -256,7 +275,7 @@ def download(sid, fid):
     data = connect('GET', '/scans/{0}/export/{1}/download'.format(sid, fid))
     filename = 'nessus_{0}_{1}.nessus'.format(sid, fid)
 
-    print('Saving scan results to {0}.'.format(filename))
+    my_logger.info('Saving scan results to {0}.'.format(filename))
     with open(filename, 'w') as f:
         f.write(data)
 
@@ -298,8 +317,8 @@ def claim_a_message():
     client_id = config.get("nessus", "client_id")
     the_scan = queue.ScanQueue()
     json_msg = the_scan.claim_a_message(client_id=client_id)
-    print " I am trying to claim a message!"
-    print json_msg
+    my_logger.info(" I am trying to claim a message!")
+    my_logger.info(json_msg)
     if len(json_msg) > 0:
         scan_id = json_msg[0]["body"]["scan_id"]
         ips = json_msg[0]["body"]["targets"]
@@ -308,11 +327,11 @@ def claim_a_message():
         msg_id_claim_id = href.split("/")[-1]
         claim_id = msg_id_claim_id.split("?")[1]
         msg_id = msg_id_claim_id.split("?")[0]
-        print msg_id_claim_id
+        my_logger.debug("the msg_id_claim_id is:{}".format(msg_id_claim_id))
         # delete the message
         the_scan.delete_queue_message(client_id=client_id,
                                       message_id=msg_id_claim_id)
-        print "delete the message with id of %s" % msg_id_claim_id
+        my_logger.debug("delete the message with id of %s" % msg_id_claim_id)
         return (scan_id, origin_id, ips)
     else:
         return ()
@@ -390,7 +409,7 @@ def update_queue_scan_started(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839"):
     thing = {"status": "scan started", "start_time": strftime(
                                 "%Y-%m-%d %H:%M:%S", gmtime())}
     (status, href, start_time) = get_queue_scan_status(scan_id)
-    print "updated scan id is:" + scan_id
+    my_logger.debug("updated scan id is {}".format(scan_id))
     if status == "not found":
         the_scan.post_queue_message(client_id=client_id,
                                     queue_name="ScanResponse",
@@ -411,11 +430,10 @@ def update_queue_scan_finished(scan_id="cb6399bb-3e8d-4d0f-8fd9-6bc22a969839",
              "finish_time": strftime("%Y-%m-%d %H:%M:%S", gmtime()),
              "start_time": start_time,
              "scan_result": scan_result}
-    print status
-    print scan_id
+    my_logger.debug("The scan_id is: {}".format(scan_id))
     if status == "scan started":
         message_id = href.split("/")[-1]
-        print message_id
+        my_logger.debug("message_id is: {}".format(message_id))
         the_scan.delete_queue_message(client_id=client_id,
                                       queue_name="ScanResponse",
                                       message_id=message_id)
@@ -456,18 +474,19 @@ def nessus_scan_ips(ips="127.0.0.1",
     '''
 
     start_time = time.time()
-    print('Login')
+    my_logger.info('Nessus: Login')
     global token
     token = login(username, password)
 
     # update queue with statu of "scan started"
-    print "scan_id is: " + scan_id
+    my_logger.info("scan_id is: {} ".format(scan_id))
     update_queue_scan_started(scan_id)
 
-    print('Adding new scan.')
+    my_logger.info('Nessus: Adding new scan.')
     policies = get_policies()
 
-    print policies
+    my_logger.info("Nessus plicies is {}".format(policies))
+
     policy_id = policies['Internal PCI Network Scan']
     scan_data = add(scan_name + scan_id,
                     'Create a new scan with API',
@@ -475,29 +494,29 @@ def nessus_scan_ips(ips="127.0.0.1",
                     policy_id)
     nessus_scan_id = scan_data['id']
 
-    print('Launching new scan.')
+    my_logger.info('Nessus: Launching new scan.')
     nessus_scan_uuid = launch(nessus_scan_id)
     history_ids = get_history_ids(nessus_scan_id)
     history_id = history_ids[nessus_scan_uuid]
     while status(nessus_scan_id, history_id) != 'completed':
         time.sleep(25)
 
-    print('Exporting the completed scan.')
+    my_logger.info('Nessus: Exporting the completed scan.')
 
     file_id = export(nessus_scan_id, history_id)
     download(nessus_scan_id, file_id)
 
     filename = 'nessus_{0}_{1}.nessus'.format(nessus_scan_id, file_id)
-    print filename
-    print "%s with scan id %s" % (filename, scan_id)
-    print('Logout')
+    my_logger.info("Nessus: Saving result {} with scan id {}".format(
+                                    filename, scan_id))
+    my_logger.info('Nessus: Logout')
     logout()
 
     end_time = time.time()
     run_time = end_time - start_time
     # get scan result from the downloaded file
     scan_result = get_vulnerability(filename=filename, run_time=run_time)
-    print "update the queue"
+    my_logger.info("update the queue")
 
     # update the queue with scan result and the status of "san finished"
     update_queue_scan_finished(scan_id=scan_id,
