@@ -76,7 +76,7 @@ def connect(method, resource, data=None, params=None):
     if r.status_code != 200:
         e = r.json()
         my_logger.error(e['error'])
-        sys.exit()
+        # sys.exit()
 
     # When downloading a scan we need the raw contents not the JSON data.
     if 'download' in resource:
@@ -368,6 +368,17 @@ def get_vulnerability(filename="", run_time=10):
             description = ""
             synopsis = ""
             plugin_output = ""
+            see_also = ""
+            solution = ""
+            fname = ""
+            plugin_type = ""
+            plugin_publication_date = ""
+            plugin_modification_date = ""
+            plugin_name = ""
+            fname = ""
+            script_version = ""
+            risk_factor = ""
+
             for atom in issue:
                 if atom.tag == "description":
                     description = atom.text
@@ -375,10 +386,23 @@ def get_vulnerability(filename="", run_time=10):
                     synopsis = atom.text
                 elif atom.tag == "plugin_output":
                     plugin_output = atom.text
+                elif atom.tag == "see_also":
+                    see_also = atom.text
+                elif atom.tag == "solution":
+                    solution = atom.text
+                elif atom.tag == "fname":
+                    fname = atom.text
+                elif atom.tag == "plugin_modification_date":
+                    plugin_modification_date = atom.text
+                elif atom.tag == "plugin_name":
+                    plugin_name = atom.text
+                elif atom.tag == "plugin_type":
+                    plugin_type = atom.text
+                elif atom.tag == "risk_factor":
+                    risk_factor = atom.text
+                elif atom.tag == "script_version":
+                    script_version = atom.text
 
-            failure.text = u"Host: {}\n\nDescription: {}\n\nSynopsis: \
-                            {}\n\nPlugin Output: {}\n".format(
-                            host, description, synopsis, plugin_output)
             testcase_attribs = {}
             sev_level = int(attribs["severity"])
             testcase_attribs["severity"] = severity_match[sev_level]
@@ -387,6 +411,35 @@ def get_vulnerability(filename="", run_time=10):
             testcase_attribs["pluginName"] = attribs["pluginName"]
             testcase_attribs["classname"] = attribs["pluginID"]
             testcase.attrib = testcase_attribs
+            failure.text = u"""Host:{}
+                            Description:{}
+                            Severity:{}
+                            Fname:{}
+                            Plugin_modification_date:{}
+                            Plugin_name:{}
+                            Plugin_publication_date:{}
+                            Plugin_type:{}
+                            Risk_factor:{}
+                            Script_version:{}
+                            See Also:{}
+                            Solution:{}
+                            Synopsis:{}
+                            Plugin_output:{}
+                            """.format(
+                                host,
+                                description,
+                                testcase_attribs["severity"],
+                                fname,
+                                plugin_modification_date,
+                                plugin_name,
+                                plugin_publication_date,
+                                plugin_type,
+                                risk_factor,
+                                script_version,
+                                see_also,
+                                solution,
+                                synopsis,
+                                plugin_output)
             issues.append(issue)
     testsuites_attribs = {}
     testsuites_attribs["failures"] = str(number_issues)
